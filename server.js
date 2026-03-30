@@ -210,6 +210,11 @@ async function sendToAmo(returnUrl, text) {
 // ─── Хелперы ─────────────────────────────────────────────────────────────────
 
 function extractMessage(body) {
+  // AmoCRM v4 add_message format
+  const addMsg = body?.message?.add?.[0];
+  if (addMsg?.text && addMsg?.type === 'inbound') return addMsg.text;
+
+  // Other formats
   return body?.message?.text
     || body?.messages?.[0]?.text
     || body?.text
@@ -217,6 +222,10 @@ function extractMessage(body) {
 }
 
 function extractTalkId(body) {
+  // AmoCRM v4 add_message format
+  const addMsg = body?.message?.add?.[0];
+  if (addMsg?.talk_id) return addMsg.talk_id;
+
   return body?.talk_id
     || body?.message?.talk_id
     || body?.messages?.[0]?.talk_id
