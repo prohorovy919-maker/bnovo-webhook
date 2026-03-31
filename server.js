@@ -405,11 +405,14 @@ async function sendChatMessage(talkId, text) {
   try {
     const url = `https://${AMO_DOMAIN}/api/v4/talks/${talkId}/messages`;
     const resp = await axios.post(url, { text }, {
-      params: { USER_LOGIN: AMO_LOGIN, USER_HASH: AMO_HASH }
+      headers: {
+        'Authorization': `Bearer ${AMO_HASH}`,
+        'Content-Type': 'application/json'
+      }
     });
     console.log(`Ответ отправлен в talk ${talkId}`);
   } catch (err) {
-    console.error('Ошибка отправки:', err.response?.status, err.response?.data || err.message);
+    console.error('Ошибка отправки:', err.response?.status, JSON.stringify(err.response?.data) || err.message);
   }
 }
 
