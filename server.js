@@ -10,8 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const AMO_DOMAIN = process.env.AMO_DOMAIN;
-const AMO_LOGIN = process.env.AMO_LOGIN;
-const AMO_HASH = process.env.AMO_HASH;
+const AMO_TOKEN = process.env.AMO_TOKEN;
 
 // Храним историю диалогов по talk_id
 const conversations = new Map();
@@ -406,7 +405,7 @@ async function sendChatMessage(talkId, text) {
     const url = `https://${AMO_DOMAIN}/api/v4/talks/${talkId}/messages`;
     const resp = await axios.post(url, { text }, {
       headers: {
-        'Authorization': `Bearer ${AMO_HASH}`,
+        'Authorization': `Bearer ${AMO_TOKEN}`,
         'Content-Type': 'application/json'
       }
     });
