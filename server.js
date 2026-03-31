@@ -494,6 +494,17 @@ function formatDate(str) {
   return `${parseInt(d)} ${months[parseInt(m) - 1]}`;
 }
 
+// ─── Диагностика: захват сырого запроса от Salesbot ──────────────────────────
+
+// Временно направь Salesbot сюда вместо /availability, чтобы увидеть точный payload
+app.post('/echo', (req, res) => {
+  console.log('=== ECHO (raw Salesbot payload) ===');
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('===================================');
+  res.sendStatus(200);
+});
+
 // ─── Тесты ───────────────────────────────────────────────────────────────────
 
 app.get('/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
