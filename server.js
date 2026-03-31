@@ -377,25 +377,41 @@ async function handleCheckAvailability({ date_from, date_to }) {
   }
 }
 
-// ─── Старый Salesbot endpoint (оставляем для совместимости) ─────────────────
+// ─── Salesbot endpoint — Claude отвечает через return_url ────────────────────
 
 app.post('/availability', async (req, res) => {
-  const { data, return_url } = req.body;
+  console.log('Salesbot вызов:', JSON.stringify(req.body, null, 2));
+  const { return_url } = req.body;
   res.sendStatus(200);
+
   try {
-    const dateFrom = data?.date_from;
-    const dateTo = data?.date_to;
-    if (!dateFrom || !dateTo) {
-      await sendToAmo(return_url, 'Уточни дату заезда и выезда.');
-      return;
+    // Извлекаем текст сообщения клиента из разных форматов
+    const clientMessage = req.body?.data?.text
+      || req.body?.message
+      || req.body?.text
+      || 'Здравствуйте';
+
+    const talkId = req.body?.data?.talk_id || req.body?.talk_id || 'unknown';
+
+    console.log(`Salesbot сообщение (talk ${talkId}): ${clientMessage}`);
+
+    // Получаем или создаём историю диалога
+    if (!conversations.has(talkId)) {
+      conversations.set(talkId, []);
     }
-    const { freeRooms } = await checkAvailability(dateFrom, dateTo);
-    const message = freeRooms.length === 0
-      ? formatNoAvailability(dateFrom, dateTo)
-      : formatAvailability(freeRooms, dateFrom, dateTo);
-    await sendToAmo(return_url, message);
+    const history = conversations.get(talkId);
+    history.push({ role: 'user', content: clientMessage });
+
+    // Запускаем агента Claude
+    const reply = await runAgent([...history]);
+    if (reply) {
+      history.push({ role: 'assistant', content: reply });
+      await sendToAmo(return_url, reply);
+    }
+
   } catch (err) {
-    await sendToAmo(return_url, 'Не смог проверить — уточню дополнительно.').catch(() => {});
+    console.error('Ошибка /availability:', err.message);
+    await sendToAmo(return_url, 'Дай секунду, уточню у администратора и сразу напишу!').catch(() => {});
   }
 });
 
