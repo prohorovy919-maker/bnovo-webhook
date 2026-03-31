@@ -287,6 +287,7 @@ app.post('/amo-webhook', async (req, res) => {
     const body = req.body;
     const message = extractMessage(body);
     const talkId = extractTalkId(body);
+    const chatId = extractChatId(body);
     const messageType = extractMessageType(body);
 
     // Пропускаем исходящие сообщения (от бота/менеджера)
@@ -295,7 +296,7 @@ app.post('/amo-webhook', async (req, res) => {
       return;
     }
 
-    console.log(`Входящее сообщение (talk ${talkId}): ${message}`);
+    console.log(`Входящее сообщение (talk ${talkId}, chat ${chatId}): ${message}`);
 
     // Получаем или создаём историю диалога
     if (!conversations.has(talkId)) {
@@ -308,7 +309,7 @@ app.post('/amo-webhook', async (req, res) => {
     const reply = await runAgent(history);
     if (reply) {
       history.push({ role: 'assistant', content: reply });
-      await sendChatMessage(talkId, reply);
+      await sendChatMessage(chatId, talkId, reply);
     }
 
   } catch (err) {
@@ -400,18 +401,26 @@ app.post('/availability', async (req, res) => {
 
 // ─── Отправка сообщения в чат AmoCRM ─────────────────────────────────────────
 
-async function sendChatMessage(talkId, text) {
-  try {
-    const url = `https://${AMO_DOMAIN}/api/v4/talks/${talkId}/messages`;
-    const resp = await axios.post(url, { text }, {
-      headers: {
-        'Authorization': `Bearer ${AMO_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log(`Ответ отправлен в talk ${talkId}`);
-  } catch (err) {
-    console.error('Ошибка отправки:', err.response?.status, JSON.stringify(err.response?.data) || err.message);
+async function sendChatMessage(chatId, talkId, text) {
+  // Пробуем несколько эндпоинтов amoCRM
+  const endpoints = [
+    { url: `https://${AMO_DOMAIN}/api/v4/chats/${chatId}/messages`, body: { text } },
+    { url: `https://${AMO_DOMAIN}/api/v4/talks/${talkId}/messages`, body: { text } },
+  ];
+
+  for (const ep of endpoints) {
+    try {
+      const resp = await axios.post(ep.url, ep.body, {
+        headers: {
+          'Authorization': `Bearer ${AMO_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log(`Ответ отправлен через ${ep.url}`);
+      return;
+    } catch (err) {
+      console.error(`Ошибка ${ep.url}:`, err.response?.status, JSON.stringify(err.response?.data) || err.message);
+    }
   }
 }
 
@@ -437,6 +446,14 @@ function extractTalkId(body) {
     || body?.talk_id
     || body?.message?.talk_id
     || body?.messages?.[0]?.talk_id
+    || null;
+}
+
+function extractChatId(body) {
+  return body?.message?.add?.[0]?.chat_id
+    || body?.chat_id
+    || body?.message?.chat_id
+    || body?.messages?.[0]?.chat_id
     || null;
 }
 
